@@ -1,0 +1,86 @@
+html, body {
+  height: 100vh;
+  font-family: monospace;
+}
+
+body {
+  background-color: #142031;
+  font-size: 72px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+button {
+  margin: 2px;
+  padding: 0 4px;
+  flex-grow: 1;
+  min-width: 100px;
+  min-height: 100px;
+  border: 2px solid black;
+  flex: 0 0 auto;
+}
+
+#btn_0 {
+  min-width: 204px;
+}
+
+#btn_decimal {
+  background-color: #30100B;
+}
+#btn_decimal:hover {
+  background-color: #51261E;
+}
+
+#calculator {
+  display: flex;
+  flex-direction: column;
+  padding: 32px;
+  background-color: #BBC0BB;
+  border-radius: 8px;
+  min-width: 300px;
+}
+
+#display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background-color: #EBF1EB;
+  min-height: 60px;
+  max-height: 60px;
+  font-size: 30px;
+  margin: 0 0 16px 0;
+  padding: 0 16px;
+}
+
+.row {
+  display: flex;
+}
+
+.btn_num {
+  background-color: #30100B;
+  color: white;
+}
+.btn_num:hover{
+  background-color: #51261E;
+}
+
+.btn_op, #btn_eval{
+  background-color: #121F24;
+  color: white;
+}
+.btn_op:hover, #btn_eval:hover {
+  background-color: #344240;
+}
+.btn_op.selected, #btn_eval.selected {
+  background-color: #445050;
+}
+
+.btn_misc {
+  background-color: #34003A;
+  color: white;
+}
+.btn_misc:hover {
+  background-color: #562261;
+}
+

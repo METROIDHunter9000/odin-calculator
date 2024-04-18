@@ -113,6 +113,7 @@ function updateDisplay() {
     default:
       display.innerText = `${operand1.realVal()}`
   }
+  display.innerText = display.innerText.slice(-21);
 }
 
 function enterDigit(digit) {

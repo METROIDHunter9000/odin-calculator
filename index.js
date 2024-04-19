@@ -1,3 +1,30 @@
+class FSMState {
+  constructor(handleInput) {
+    if(typeof handleInput === 'function'){
+      this.handleInput = handleInput;
+    }else{
+      throw `Illegal argument: ${typeof handleInput}`
+    }
+  }
+}
+
+// Operand represents a number with a sign
+class Operand {
+  constructor(val, sign) {
+    this.val = val;
+    this.sign = sign;
+  }
+
+  realVal() {
+    // "True" indiciates a positive sign. False is negative
+    if(this.sign){
+      return this.val;
+    }else{
+      return -1 * this.val;
+    }
+  }
+}
+
 // Operator represents a simple mathematical operation with a display string
 class Operator {
   constructor(display, fn) {
@@ -29,33 +56,165 @@ const Operators = {
   })
 }
 
-// Calculator design is based loosely on a FSM
-const State = {
-  "op1": 1,
-  "operator": 2,
-  "op2": 3,
-  "result": 4
-}
+const REGEX_DIGIT = /^\d{1}$/
+const REGEX_OPR = /^[\/\-\+\*]{1}$/
+let stateOp1;
+let stateOpr;
+let stateOp2;
+let stateR;
 
-// Operand represents a number with a sign
-class Operand {
-  constructor(val, sign) {
-    this.val = val;
-    this.sign = sign;
+/*
+ * stateOp1 represents the state where
+ * operand1 is the operand being modified
+ */
+stateOp1 = new FSMState(input => {
+  if(REGEX_DIGIT.test(input)){
+    let digit = +input;
+    enterDigit(operand1, digit);
+
+  }else if(REGEX_OPR.test(input)){
+    selectOperator(input);
+    return stateOpr;
+
+  }else if(input === '.'){
+    freezeDecimal();
+
+  }else if(input === 'AC' || input === 'Escape'){
+    clear();
+
+  }else if(input === '+/-'){
+    negate(operand1);
+
+  }else if(input === 'Backspace'){
+    removeDigit(operand1);
+
+  }else if(input === '%'){
+    percentify(operand1);
   }
 
-  realVal() {
-    // "True" indiciates a positive sign. False is negative
-    if(this.sign){
-      return this.val;
+  return stateOp1;
+});
+
+/*
+ * stateOpr represents the state where
+ * an operator has been selected, but
+ * a second operand has not been
+ */
+stateOpr = new FSMState(input => {
+  if(REGEX_DIGIT.test(input)){
+    operand2 = new Operand(0, true);
+    let digit = +input;
+    enterDigit(operand2, digit);
+    return stateOp2;
+
+  }else if(input === 'Backspace'){
+    operator = null;
+    updateDisplay();
+    return stateOp1;
+
+  }else if(REGEX_OPR.test(input)){
+    selectOperator(input);
+
+  }else if(input === '.'){
+    operand2 = new Operand(0, false);
+    freezeDecimal();
+    return stateOp2;
+
+  }else if(input === 'AC' || input === 'Escape'){
+    clear();
+    return stateOp1;
+
+  }else if(input === '+/-'){
+    operand2 = new Operand(0, false);
+    return stateOp2;
+  }
+
+  return stateOpr;
+});
+
+/*
+ * stateOp2 represents the state where
+ * operand2 is the operand being modified
+ */
+stateOp2 = new FSMState(input => {
+  if(REGEX_DIGIT.test(input)){
+    let digit = +input;
+    enterDigit(operand2, digit);
+
+  }else if(REGEX_OPR.test(input)){
+    evaluate();
+    selectOperator(input);
+    return stateOpr;
+
+  }else if(input === '.'){
+    freezeDecimal();
+
+  }else if(input === 'AC' || input === 'Escape'){
+    clear();
+    return stateOp1;
+
+  }else if(input === '+/-'){
+    negate(operand2);
+
+  }else if(input === '%'){
+    percentify(operand2);
+
+  }else if(input === 'Backspace'){
+    if(operand2.val != 0){
+      removeDigit(operand2);
     }else{
-      return -1 * this.val;
+      operand2 = null;
+      updateDisplay();
+      return stateOpr;
     }
+
+  }else if(input === '=' || input === "Enter"){
+    evaluate();
+    return stateR;
   }
-}
+
+  return stateOp2;
+});
+
+/*
+ * stateR represents the state where
+ * a result has just been calculated
+ */
+stateR = new FSMState(input => {
+  if(REGEX_DIGIT.test(input)){
+    operand1 = new Operand(0, true);
+    let digit = +input;
+    enterDigit(operand1, digit);
+    return stateOp1;
+
+  }else if(REGEX_OPR.test(input)){
+    selectOperator(input);
+    return stateOpr;
+
+  }else if(input === 'Backspace'){
+    removeDigit(operand1);
+    return stateOp1;
+
+  }else if(input === '.'){
+    freezeDecimal();
+    return stateOp1;
+
+  }else if(input === 'AC' || input === 'Escape'){
+    clear();
+    return stateOp1;
+
+  }else if(input === '+/-'){
+    negate(operand1);
+
+  }else if(input === '%'){
+    percentify(operand1);
+  }
+  
+  return stateR;
+});
 
 // Initialize state
-let calc_state = State.op1;
+let fsmState = stateOp1;
 let fractional_mode = 0;
 let operand1;
 let operand2;
@@ -65,72 +224,29 @@ updateDisplay();
 
 calculator = document.querySelector('#calculator');
 calculator.addEventListener('click', event => {
-  if(event.target.classList.contains("btn_num")) {
-    enterDigit(event.target.innerText);
-  }else if(event.target.classList.contains("btn_op")){
-    selectOperator(Operators[event.target.innerText]);
+  fsmState = fsmState.handleInput(event.target.innerText);
+});
+
+document.addEventListener('keydown', event => {
+  if(!/^F\d{1,2}$/.test(event.key)){
+    event.preventDefault();
   }
-});
-
-calculator.addEventListener('keypress', () => {
-  
-});
-
-btn_clear = document.querySelector('#btn_clear');
-btn_clear.addEventListener('click', () => {
-  clear();
-});
-
-btn_eval = document.querySelector('#btn_eval');
-btn_eval.addEventListener('click', () => {
-  evaluate();
-});
-
-btn_sign= document.querySelector('#btn_sign');
-btn_sign.addEventListener('click', () => {
-  negate();
-});
-
-btn_decimal = document.querySelector('#btn_decimal');
-btn_decimal.addEventListener('click', () => {
-  freezeDecimal();
-});
-
-btn_percent = document.querySelector('#btn_percent');
-btn_percent.addEventListener('click', () => {
-  percentify();
+  fsmState = fsmState.handleInput(event.key);
 });
 
 display = document.querySelector('#display');
 function updateDisplay() {
-  switch(calc_state){
-    case State.operator:
-      display.innerText = `${operand1.realVal()} ${operator.display}`
-      break;
-    case State.op2:
-      display.innerText = `${operand1.realVal()} ${operator.display} ${operand2.realVal()}`
-      break;
-    default:
-      display.innerText = `${operand1.realVal()}`
+  display.innerText = `${operand1.realVal()}`
+  if(operator !== null){
+    display.innerText += ` ${operator.display}`;
+  }
+  if(operand2 !== null){
+    display.innerText += ` ${operand2.realVal()}`;
   }
   display.innerText = display.innerText.slice(-21);
 }
 
-function enterDigit(digit) {
-  digit = +digit;
-  let operand = operand1;
-  if(calc_state === State.operator){
-    operand2 = new Operand(0, true);
-    calc_state = State.op2;
-  }else if(calc_state === State.result){
-    operand1 = new Operand(0, true);
-    operand = operand1;
-    calc_state = State.op1;
-  }
-  if(calc_state !== State.op1){
-    operand = operand2;
-  }
-
+function enterDigit(operand, digit) {
   if(fractional_mode === 0){
     operand.val *= 10;
     operand.val += digit;
@@ -142,23 +258,26 @@ function enterDigit(digit) {
   updateDisplay();
 }
 
-function selectOperator(op) {
-  if(calc_state === State.op2){
-    evaluate();
-  }
-
-  if(typeof op === "object"){
-    operator = op;
-    calc_state = State.operator;
-    fractional_mode = 0;
+function removeDigit(operand){
+  if(fractional_mode === 0){
+    operand.val = Math.floor(operand.val / 10);
   }else{
-    throw `Illegal argument type for selectOperator: ${typeof op}`
+    operand.val = +operand.val.toFixed(fractional_mode - 2);
+    fractional_mode--;
+    if(fractional_mode === 1){
+      fractional_mode = 0;
+    }
   }
   updateDisplay();
 }
 
+function selectOperator(op) {
+  operator = Operators[op];
+  fractional_mode = 0;
+  updateDisplay();
+}
+
 function clear() {
-  calc_state = State.op1;
   operand1 = new Operand(0, true);
   operand2 = null;
   operator = null;
@@ -166,31 +285,13 @@ function clear() {
   updateDisplay();
 }
 
-function negate() {
-  switch(calc_state){
-    case State.op1:
-      operand1.sign = ! operand1.sign;
-      break;
-    case State.operator:
-      operand2 = new Operand(0, false);
-      calc_state = State.op2;
-      break;
-    case State.op2:
-      operand2.sign = ! operand2.sign;
-      break;
-    case State.result:
-      operand1.sign = ! operand1.sign;
-      break;
-  }
+function negate(operand) {
+  operand.sign = ! operand.sign;
   updateDisplay();
 }
 
-function percentify() {
-  if(calc_state === State.op1 || calc_state === State.result){
-    operand1.val /= 100;
-  }else if(calc_state === State.op2){
-    operand2.val /= 100;
-  }
+function percentify(operand) {
+  operand.val /= 100;
   if(fractional_mode == 0){
     fractional_mode = 1;
   }
@@ -206,12 +307,9 @@ function freezeDecimal() {
 }
 
 function evaluate() {
-  if(calc_state === State.op2){
-    result = operator.fn(operand1, operand2);
-    operand1 = result;
-    operator = null;
-    operand2 = null;
-    calc_state = State.result;
-  }
+  result = operator.fn(operand1, operand2);
+  operand1 = result;
+  operator = null;
+  operand2 = null;
   updateDisplay();
 }

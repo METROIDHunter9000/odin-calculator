@@ -11,16 +11,19 @@ class FSMState {
 // Operand represents a number with a sign
 class Operand {
   constructor(val, sign) {
-    this.val = val;
+    this.valMajor = String(val);
     this.sign = sign;
+    this.valMinor = '';
   }
 
   realVal() {
+    let realVal = +this.valMajor + +this.valMinor / 10**this.valMinor.length;
+
     // "True" indiciates a positive sign. False is negative
     if(this.sign){
-      return this.val;
+      return realVal;
     }else{
-      return -1 * this.val;
+      return -1 * realVal;
     }
   }
 }
@@ -116,7 +119,7 @@ stateOpr = new FSMState(input => {
     selectOperator(input);
 
   }else if(input === '.'){
-    operand2 = new Operand(0, false);
+    operand2 = new Operand(0, true);
     freezeDecimal();
     return stateOp2;
 
@@ -160,7 +163,7 @@ stateOp2 = new FSMState(input => {
     percentify(operand2);
 
   }else if(input === 'Backspace'){
-    if(operand2.val != 0){
+    if(operand2.realVal() != 0){
       removeDigit(operand2);
     }else{
       operand2 = null;
@@ -215,7 +218,7 @@ stateR = new FSMState(input => {
 
 // Initialize state
 let fsmState = stateOp1;
-let fractional_mode = 0;
+let fractional_mode = false;
 let operand1;
 let operand2;
 let operator;
@@ -247,25 +250,23 @@ function updateDisplay() {
 }
 
 function enterDigit(operand, digit) {
-  if(fractional_mode === 0){
-    operand.val *= 10;
-    operand.val += digit;
-  }else if(fractional_mode > 0){
-    operand.val += digit / 10**fractional_mode++;
+  if(!fractional_mode){
+    operand.valMajor += digit;
   }else{
-    throw `Illegal value for fractional_mode: ${fractional_mode}`
+    operand.valMinor += digit;
   }
   updateDisplay();
 }
 
 function removeDigit(operand){
-  if(fractional_mode === 0){
-    operand.val = Math.floor(operand.val / 10);
+  if(!operand.valMinor){
+    fractional_mode = false;
+    operand.valMajor = operand.valMajor.slice(0, -1);
   }else{
-    operand.val = +operand.val.toFixed(fractional_mode - 2);
-    fractional_mode--;
-    if(fractional_mode === 1){
-      fractional_mode = 0;
+    fractional_mode = true;
+    operand.valMinor = operand.valMinor.slice(0, -1);
+    if(operand.valMinor){
+      fractional_mode = false;
     }
   }
   updateDisplay();
@@ -273,7 +274,7 @@ function removeDigit(operand){
 
 function selectOperator(op) {
   operator = Operators[op];
-  fractional_mode = 0;
+  fractional_mode = false;
   updateDisplay();
 }
 
@@ -281,7 +282,7 @@ function clear() {
   operand1 = new Operand(0, true);
   operand2 = null;
   operator = null;
-  fractional_mode = 0;
+  fractional_mode = false;
   updateDisplay();
 }
 
@@ -291,17 +292,25 @@ function negate(operand) {
 }
 
 function percentify(operand) {
-  operand.val /= 100;
-  if(fractional_mode == 0){
-    fractional_mode = 1;
+  let shift = operand.valMajor.slice(-2)
+  if(shift.length == 1){
+    shift = `0${shift}`;
   }
-  fractional_mode += 2;
+  operand.valMajor = operand.valMajor.slice(0, -2);
+  if(operand.valMajor === ''){
+    operand.valMajor = '0';
+  }
+  operand.valMinor = `${shift}${operand.valMinor}`
+
+  if(fractional_mode == false){
+    fractional_mode = true;
+  }
   updateDisplay();
 }
 
 function freezeDecimal() {
-  if(fractional_mode == 0){
-    fractional_mode = 1;
+  if(!fractional_mode){
+    fractional_mode = true;
   }
   updateDisplay();
 }
